@@ -6,6 +6,9 @@ from flask_mail import Mail, Message
 from flask_mongoengine import MongoEngine
 from flask_security import MongoEngineUserDatastore, Security, login_required
 from passlib.apps import custom_app_context as pwd_context
+from flask_mongorest import MongoRest
+from flask_mongorest.views import ResourceView
+from flask_mongorest import methods
 
 import bcrypt
 from flask_cors import CORS
@@ -44,6 +47,7 @@ mail = Mail(app)
 
 # Create database connection object
 db = MongoEngine(app)
+api = MongoRest(app)
 
 # Define valid email, password patterns
 email_pattern = re.compile('[\\w.]+@[\\w]+.[\\w]+', re.IGNORECASE)
@@ -141,6 +145,11 @@ def authenticate():
         else:
             error = "Incorrect email or password"
     return jsonify({'error': error}), 422, json_tag
+
+@api.register(name='maps', url='/maps/')
+class MapView(ResourceView):
+    resource = MapResource
+    methods = [methods.Create, methods.Update, methods.Fetch, methods.List]
 
 #=====================================================
 # Main

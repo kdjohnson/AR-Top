@@ -3,6 +3,8 @@ import secrets
 from flask_security import (MongoEngineUserDatastore, RoleMixin, Security,
                             UserMixin, login_required)
 
+from flask_mongorest.resources import Resource
+
 from itsdangerous import TimedJSONWebSignatureSerializer as Serializer
 from itsdangerous import BadSignature, SignatureExpired
 
@@ -34,9 +36,12 @@ class Position(EmbeddedDocument):
 
     TODO: Make this more modular, and independent of max_size
     """
-    x = IntField(required=True, choices=range(1,max_size + 1))
-    y = IntField(required=True, choices=range(1,max_size + 1))
-    z = IntField(required=True, choices=range(1,max_size + 1))
+    x = IntField(required=True, min_value=1, max_value=max_size)
+    y = IntField(required=True, min_value=1, max_value=max_size)
+    z = IntField(required=True, min_value=1, max_value=max_size)
+
+class PositionResource(Resource):
+    document = Position
 
 class RGBColor(EmbeddedDocument):
     """
@@ -55,9 +60,15 @@ class MapModel(EmbeddedDocument):
     This schema should be used to represent any model that can be
     placed into a map.
     """
-    type = EnumField(StringField(), 'voxel')
+    type = StringField(required=True, choices=['voxel'])
     position = EmbeddedDocumentField(Position)
     color = StringField(required=True, regex='^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$')
+
+class MapModelResource(Resource):
+    document = MapModel
+    related_resources = {
+        'position': PositionResource,
+    }
 
 class Map(Model):
     width = IntField(default=16, choices=range(1,max_size + 1))
@@ -70,6 +81,12 @@ class Map(Model):
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
         # TODO: socket.io or whatever the hell it is
+
+class MapResource(Resource):
+    document = Map
+    related_resources = {
+        'models': MapModelResource,
+    }
         
 class Role(Model, RoleMixin):
     name = StringField(max_length=80, unique=True)
